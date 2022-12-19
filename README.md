@@ -1,9 +1,3 @@
-# CFG
+# Name in Progress
 
-An extensible configuration language
-
-# Aims
-
-- Schemas + validation
-- Variables
-- Functions
+A simple language
