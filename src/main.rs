@@ -1,3 +1,7 @@
+use parser::literal;
+
 mod parser;
 
-fn main() {}
+fn main() {
+    println!("{:?}", literal::Number::parse("900"));
+}
