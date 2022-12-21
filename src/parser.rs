@@ -1,6 +1,3 @@
-pub mod literal;
+pub use literal::Literal;
 
-pub enum Literal {
-    Number(literal::Number),
-    None,
-}
+pub mod literal;

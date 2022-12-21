@@ -3,5 +3,5 @@ use parser::literal;
 mod parser;
 
 fn main() {
-    println!("{:?}", literal::Number::parse("900"));
+    println!("{:?}", literal::Literal::parse(include_str!("input.txt")));
 }
