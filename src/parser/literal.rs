@@ -59,4 +59,14 @@ fn literal_parses() {
             })
         ))
     );
+
+    assert_eq!(
+        Literal::parse("'a'"),
+        Ok(("", Literal::Character(Character('a'))))
+    );
+
+    assert_eq!(
+        Literal::parse("\"a\""),
+        Ok(("", Literal::String(Str(String::from("a")))))
+    );
 }
