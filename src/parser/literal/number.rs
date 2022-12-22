@@ -3,12 +3,56 @@ use nom::{
     bytes::complete::tag,
     character::complete::one_of,
     combinator::{opt, value},
-    multi::{many0, many1},
+    multi::many1,
+    sequence::terminated,
     IResult, Parser,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Number {
+pub struct Integer {
+    pub base: Base,
+    pub digits: Vec<u8>,
+    pub sign: Sign,
+}
+
+impl Integer {
+    pub fn parse(input: &str) -> IResult<&str, Self> {
+        let (input, sign) = Sign::parse(input)?;
+        let (input, base) = Base::parse(input)?;
+        let (input, digits) = base.parse_digits(input)?;
+
+        Ok((input, Self { base, digits, sign }))
+    }
+}
+
+#[test]
+fn integer_parses() {
+    assert_eq!(
+        Integer::parse("42"),
+        Ok((
+            "",
+            Integer {
+                base: Base::Decimal,
+                digits: vec![4, 2],
+                sign: Sign::Positive,
+            }
+        ))
+    );
+    assert_eq!(
+        Integer::parse("0xff"),
+        Ok((
+            "",
+            Integer {
+                base: Base::Hexadecimal,
+                digits: vec![0xf, 0xf],
+                sign: Sign::Positive,
+            }
+        ))
+    );
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Float {
     pub base: Base,
     pub whole: Vec<u8>,
     pub fractional: Vec<u8>,
@@ -16,15 +60,16 @@ pub struct Number {
     pub exponent: Option<Exponent>,
 }
 
-impl Number {
+impl Float {
     pub fn parse(input: &str) -> IResult<&str, Self> {
         let (input, sign) = Sign::parse(input)?;
         let (input, base) = Base::parse(input)?;
-        let (input, whole) = base.parse_digits(input)?;
-
-        let (input, (_, fractional)) = opt(tag("."))
-            .and(|input| base.parse_digits(input))
+        let (input, whole) = opt(|input| base.parse_digits(input))
+            .map(Option::unwrap_or_default)
             .parse(input)?;
+
+        let (input, _) = tag(".")(input)?;
+        let (input, fractional) = base.parse_digits(input)?;
 
         let (input, exponent) = if base == Base::Decimal {
             Exponent::parse(input)?
@@ -46,25 +91,25 @@ impl Number {
 }
 
 #[test]
-fn number_parses() {
+fn float_parses() {
     assert_eq!(
-        Number::parse("42"),
+        Float::parse(".5"),
         Ok((
             "",
-            Number {
+            Float {
                 base: Base::Decimal,
-                whole: vec![4, 2],
-                fractional: Vec::new(),
+                whole: Vec::new(),
+                fractional: vec![5],
                 sign: Sign::Positive,
                 exponent: None
             }
         ))
     );
     assert_eq!(
-        Number::parse("4.2"),
+        Float::parse("4.2"),
         Ok((
             "",
-            Number {
+            Float {
                 base: Base::Decimal,
                 whole: vec![4],
                 fractional: vec![2],
@@ -74,13 +119,13 @@ fn number_parses() {
         ))
     );
     assert_eq!(
-        Number::parse("0xFF"),
+        Float::parse("0xff.0"),
         Ok((
             "",
-            Number {
+            Float {
                 base: Base::Hexadecimal,
                 whole: vec![0xf, 0xf],
-                fractional: Vec::new(),
+                fractional: vec![0],
                 sign: Sign::Positive,
                 exponent: None
             }
@@ -105,15 +150,15 @@ impl Exponent {
         let (input, whole) = Base::Decimal.parse_digits(input)?;
 
         let (input, (_, fractional)) = opt(tag("."))
-            .and(|input| Base::Decimal.parse_digits(input))
+            .and(opt(|input| Base::Decimal.parse_digits(input)).map(Option::unwrap_or_default))
             .parse(input)?;
 
         Ok((
             input,
             Some(Self {
-                sign,
                 whole,
                 fractional,
+                sign,
             }),
         ))
     }
@@ -166,13 +211,19 @@ impl Base {
 
     pub fn parse_digits<'a>(&self, input: &'a str) -> IResult<&'a str, Vec<u8>> {
         many1(
-            match self {
-                Base::Binary => one_of("01"),
-                Base::Octal => one_of("01234567"),
-                Base::Decimal => one_of("0123456789"),
-                Base::Hexadecimal => one_of("0123456789abcdefABCDEF"),
-            }
-            .map(|char| char.to_digit(16).unwrap() as u8),
+            terminated(
+                match self {
+                    Self::Binary => one_of("01"),
+                    Self::Octal => one_of("01234567"),
+                    Self::Decimal => one_of("0123456789"),
+                    Self::Hexadecimal => one_of("0123456789abcdefABCDEF"),
+                },
+                opt(tag("_")),
+            )
+            .map(
+                #[allow(clippy::cast_possible_truncation)]
+                |char| char.to_digit(16).unwrap() as u8,
+            ),
         )(input)
     }
 }
@@ -182,7 +233,17 @@ fn base_parses() {
     assert_eq!(Base::parse("0b1"), Ok(("1", Base::Binary)));
     assert_eq!(Base::parse("0o7"), Ok(("7", Base::Octal)));
     assert_eq!(Base::parse("9"), Ok(("9", Base::Decimal)));
+    assert_eq!(Base::parse(""), Ok(("", Base::Decimal)));
     assert_eq!(Base::parse("0xff"), Ok(("ff", Base::Hexadecimal)));
+}
+
+#[test]
+fn digits_parse() {
+    assert_eq!(Base::Decimal.parse_digits("10"), Ok(("", vec![1, 0])));
+    assert_eq!(
+        Base::Hexadecimal.parse_digits("FF"),
+        Ok(("", vec![0xF, 0xF]))
+    );
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
