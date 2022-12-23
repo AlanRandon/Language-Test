@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::streaming::tag,
-    combinator::{map, value},
+    combinator::{complete, map, value},
     multi::{many0, many1},
     sequence::pair,
     IResult,
@@ -17,9 +17,9 @@ pub struct Binary {
 }
 
 impl Binary {
-    fn parse(input: &str) -> IResult<&str, Expression> {
-        many1(alt())(input)
-    }
+    // fn parse(input: &str) -> IResult<&str, Expression> {
+    //     many1(alt())(input)
+    // }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,74 +31,73 @@ pub enum Operator {
     Exponent,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PrecLevel {
-    AddOrSubtract,
-    MultiplyOrDivide,
-    Exponent,
-}
+impl Operator {
+    fn parse(input: &str) -> IResult<&str, Self> {
+        alt((
+            value(Self::Add, tag("+")),
+            value(Self::Subtract, tag("-")),
+            value(Self::Multiply, tag("*")),
+            value(Self::Divide, tag("/")),
+            value(Self::Exponent, tag("^")),
+        ))(input)
+    }
 
-impl PrecLevel {
-    fn parser<'a>(&self) -> fn(&'a str) -> IResult<&'a str, Operator> {
+    // The ability of a operator to 'bind' to a term
+    fn binding_powers(&self) -> (u8, u8) {
         match self {
-            Self::AddOrSubtract => {
-                (|input| {
-                    alt((
-                        value(Operator::Add, tag("+")),
-                        value(Operator::Subtract, tag("-")),
-                    ))(input)
-                }) as fn(_) -> _
-            }
-            Self::MultiplyOrDivide => {
-                (|input| {
-                    alt((
-                        value(Operator::Multiply, tag("*")),
-                        value(Operator::Divide, tag("/")),
-                    ))(input)
-                }) as fn(_) -> _
-            }
-            Self::Exponent => (|input| value(Operator::Exponent, tag("^"))(input)) as fn(_) -> _,
+            Self::Add | Self::Subtract => (10, 15),
+            Self::Multiply | Self::Divide => (20, 25),
+            Self::Exponent => (35, 30),
         }
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Terms {
-    first: Expression,
-    others: Vec<(Operator, Expression)>,
+    left_term: Expression,
+    right: Vec<(Operator, Expression)>,
 }
 
 impl Terms {
-    fn parse(input: &str, level: PrecLevel) -> IResult<&str, Self> {
-        let (input, first) = Expression::parse_term(input)?;
-        let (input, others) = many0(pair(level.parser(), Expression::parse_term))(input)?;
+    fn parse(input: &str) -> IResult<&str, Self> {
+        let (input, left_term) = Expression::parse_term(input)?;
+        let (input, right) = many0(complete(pair(Operator::parse, Expression::parse_term)))(input)?;
 
-        Ok((input, Self { first, others }))
+        Ok((input, Self { left_term, right }))
     }
 
-    fn fold(self) -> Expression {
-        self.others
-            .into_iter()
-            .fold(self.first, |left, (operator, right)| {
-                Expression::Binary(Binary {
-                    left: Box::new(left),
-                    operator,
-                    right: Box::new(right),
-                })
-            })
-    }
+    /// Reduces terms to one expression
+    ///
+    /// TODO: finish
+    fn reduce(self) -> Expression {
+        let Self {
+            mut left_term,
+            mut right,
+        } = self;
 
-    fn rfold(self) -> Expression {
-        self.others
-            .into_iter()
-            .rev()
-            .rfold(self.first, |left, (operator, right)| {
-                Expression::Binary(Binary {
-                    left: Box::new(left),
+        while let Some((operator, right_term)) = right.pop() {
+            let (left_binding_power, right_binding_power) = operator.binding_powers();
+
+            if left_binding_power > right_binding_power {
+                let right_term = Self {
+                    left_term: right_term,
+                    right: right.clone(),
+                }
+                .reduce();
+                left_term = Expression::Binary(Binary {
+                    left: Box::new(left_term),
                     operator,
-                    right: Box::new(right),
-                })
-            })
+                    right: Box::new(right_term),
+                });
+            } else {
+                left_term = Expression::Binary(Binary {
+                    left: Box::new(left_term),
+                    operator,
+                    right: Box::new(right_term),
+                });
+            }
+        }
+
+        left_term
     }
 }
 
@@ -107,12 +106,12 @@ fn terms_parse() {
     use super::super::{literal::Character, Literal};
 
     assert_eq!(
-        Terms::parse("'a' + 'b' - 'c' * 'd'", PrecLevel::AddOrSubtract),
+        Terms::parse("'a' + 'b' - 'c'"),
         Ok((
-            "* 'd'",
+            "",
             Terms {
-                first: Expression::Literal(Literal::Character(Character('a'))),
-                others: vec![
+                left_term: Expression::Literal(Literal::Character(Character('a'))),
+                right: vec![
                     (
                         Operator::Add,
                         Expression::Literal(Literal::Character(Character('b')))
@@ -128,42 +127,19 @@ fn terms_parse() {
 }
 
 #[test]
-fn terms_fold() {
+fn terms_reduce() {
     use super::super::{literal::Character, Literal};
 
     assert_eq!(
-        Terms::parse("'a' + 'b' - 'c' * 'd'", PrecLevel::AddOrSubtract)
-            .unwrap()
-            .1
-            .fold(),
+        dbg!(Terms::parse("'a' + 'b' * 'c'").unwrap().1.reduce()),
         Expression::Binary(Binary {
-            left: Box::new(Expression::Binary(Binary {
-                left: Box::new(Expression::Literal(Literal::Character(Character('a')))),
-                operator: Operator::Add,
-                right: Box::new(Expression::Literal(Literal::Character(Character('b'))))
-            })),
-            operator: Operator::Subtract,
-            right: Box::new(Expression::Literal(Literal::Character(Character('c'))))
-        })
-    );
-
-    assert_eq!(
-        Terms::parse("'a' + 'b' - 'c' + 'd' ^ 'e'", PrecLevel::AddOrSubtract)
-            .unwrap()
-            .1
-            .rfold(),
-        Expression::Binary(Binary {
-            left: Box::new(Expression::Binary(Binary {
-                left: Box::new(Expression::Binary(Binary {
-                    left: Box::new(Expression::Literal(Literal::Character(Character('a')))),
-                    operator: Operator::Add,
-                    right: Box::new(Expression::Literal(Literal::Character(Character('b'))))
-                })),
-                operator: Operator::Subtract,
-                right: Box::new(Expression::Literal(Literal::Character(Character('c'))))
-            })),
+            left: Box::new(Expression::Literal(Literal::Character(Character('a')))),
             operator: Operator::Add,
-            right: Box::new(Expression::Literal(Literal::Character(Character('d'))))
+            right: Box::new(Expression::Binary(Binary {
+                left: Box::new(Expression::Literal(Literal::Character(Character('b')))),
+                operator: Operator::Multiply,
+                right: Box::new(Expression::Literal(Literal::Character(Character('c'))))
+            }))
         })
     );
 }
