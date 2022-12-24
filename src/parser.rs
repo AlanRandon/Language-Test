@@ -5,12 +5,11 @@ use nom::{
     bytes::{complete::take_until, streaming::tag},
     character::complete::multispace1,
     combinator::{complete, value},
-    error::ParseError,
     multi::many0,
     sequence::tuple,
     IResult,
 };
-use nom_locate::{position, LocatedSpan};
+use nom_locate::LocatedSpan;
 
 pub mod expression;
 pub mod literal;

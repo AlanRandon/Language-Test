@@ -302,7 +302,7 @@ fn sign_parses() {
         Ok(("1".to_string(), Sign::Positive))
     );
     assert_eq!(
-        test::strip_span(Sign::parse("-1".into()).into()),
+        test::strip_span(Sign::parse("-1".into())),
         Ok(("1".to_string(), Sign::Negative))
     );
     assert_eq!(
