@@ -1,3 +1,4 @@
+use super::super::Span;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -16,7 +17,7 @@ pub struct Integer {
 }
 
 impl Integer {
-    pub fn parse(input: &str) -> IResult<&str, Self> {
+    pub fn parse(input: Span) -> IResult<Span, Self> {
         let (input, sign) = Sign::parse(input)?;
         let (input, base) = Base::parse(input)?;
         let (input, digits) = base.parse_digits(input)?;
@@ -27,10 +28,12 @@ impl Integer {
 
 #[test]
 fn integer_parses() {
+    use super::super::test;
+
     assert_eq!(
-        Integer::parse("42"),
+        test::strip_span(Integer::parse("42".into())),
         Ok((
-            "",
+            String::new(),
             Integer {
                 base: Base::Decimal,
                 digits: vec![4, 2],
@@ -39,9 +42,9 @@ fn integer_parses() {
         ))
     );
     assert_eq!(
-        Integer::parse("0xff"),
+        test::strip_span(Integer::parse("0xff".into())),
         Ok((
-            "",
+            String::new(),
             Integer {
                 base: Base::Hexadecimal,
                 digits: vec![0xf, 0xf],
@@ -61,7 +64,7 @@ pub struct Float {
 }
 
 impl Float {
-    pub fn parse(input: &str) -> IResult<&str, Self> {
+    pub fn parse(input: Span) -> IResult<Span, Self> {
         let (input, sign) = Sign::parse(input)?;
         let (input, base) = Base::parse(input)?;
         let (input, whole) = opt(|input| base.parse_digits(input))
@@ -92,10 +95,12 @@ impl Float {
 
 #[test]
 fn float_parses() {
+    use super::super::test;
+
     assert_eq!(
-        Float::parse(".5"),
+        test::strip_span(Float::parse(".5".into())),
         Ok((
-            "",
+            String::new(),
             Float {
                 base: Base::Decimal,
                 whole: Vec::new(),
@@ -106,9 +111,9 @@ fn float_parses() {
         ))
     );
     assert_eq!(
-        Float::parse("4.2"),
+        test::strip_span(Float::parse("4.2".into())),
         Ok((
-            "",
+            String::new(),
             Float {
                 base: Base::Decimal,
                 whole: vec![4],
@@ -119,9 +124,9 @@ fn float_parses() {
         ))
     );
     assert_eq!(
-        Float::parse("0xff.0"),
+        test::strip_span(Float::parse("0xff.0".into())),
         Ok((
-            "",
+            String::new(),
             Float {
                 base: Base::Hexadecimal,
                 whole: vec![0xf, 0xf],
@@ -141,7 +146,7 @@ pub struct Exponent {
 }
 
 impl Exponent {
-    pub fn parse(input: &str) -> IResult<&str, Option<Self>> {
+    pub fn parse(input: Span) -> IResult<Span, Option<Self>> {
         let (input, Some(_)) = opt(alt((tag("e"), tag("E"))))(input)? else {
             return Ok((input, None))
         };
@@ -166,11 +171,16 @@ impl Exponent {
 
 #[test]
 fn exponent_parses() {
-    assert_eq!(Exponent::parse(";"), Ok((";", None)));
+    use super::super::test;
+
     assert_eq!(
-        Exponent::parse("e1;"),
+        test::strip_span(Exponent::parse(";".into())),
+        Ok((";".to_string(), None))
+    );
+    assert_eq!(
+        test::strip_span(Exponent::parse("e1;".into())),
         Ok((
-            ";",
+            ";".to_string(),
             Some(Exponent {
                 whole: vec![1],
                 fractional: Vec::new(),
@@ -179,9 +189,9 @@ fn exponent_parses() {
         ))
     );
     assert_eq!(
-        Exponent::parse("e-1.1;"),
+        test::strip_span(Exponent::parse("e-1.1;".into())),
         Ok((
-            ";",
+            ";".to_string(),
             Some(Exponent {
                 whole: vec![1],
                 fractional: vec![1],
@@ -200,7 +210,7 @@ pub enum Base {
 }
 
 impl Base {
-    pub fn parse(input: &str) -> IResult<&str, Self> {
+    pub fn parse(input: Span) -> IResult<Span, Self> {
         alt((
             value(Self::Hexadecimal, tag("0x")),
             value(Self::Octal, tag("0o")),
@@ -209,7 +219,7 @@ impl Base {
         ))(input)
     }
 
-    pub fn parse_digits<'a>(&self, input: &'a str) -> IResult<&'a str, Vec<u8>> {
+    pub fn parse_digits<'a>(&self, input: Span<'a>) -> IResult<Span<'a>, Vec<u8>> {
         many1(
             terminated(
                 match self {
@@ -230,19 +240,41 @@ impl Base {
 
 #[test]
 fn base_parses() {
-    assert_eq!(Base::parse("0b1"), Ok(("1", Base::Binary)));
-    assert_eq!(Base::parse("0o7"), Ok(("7", Base::Octal)));
-    assert_eq!(Base::parse("9"), Ok(("9", Base::Decimal)));
-    assert_eq!(Base::parse(""), Ok(("", Base::Decimal)));
-    assert_eq!(Base::parse("0xff"), Ok(("ff", Base::Hexadecimal)));
+    use super::super::test;
+
+    assert_eq!(
+        test::strip_span(Base::parse("0b1".into())),
+        Ok(("1".to_string(), Base::Binary))
+    );
+    assert_eq!(
+        test::strip_span(Base::parse("0o7".into())),
+        Ok(("7".to_string(), Base::Octal))
+    );
+    assert_eq!(
+        test::strip_span(Base::parse("9".into())),
+        Ok(("9".to_string(), Base::Decimal))
+    );
+    assert_eq!(
+        test::strip_span(Base::parse("".into())),
+        Ok((String::new(), Base::Decimal))
+    );
+    assert_eq!(
+        test::strip_span(Base::parse("0xff".into())),
+        Ok(("ff".to_string(), Base::Hexadecimal))
+    );
 }
 
 #[test]
 fn digits_parse() {
-    assert_eq!(Base::Decimal.parse_digits("10"), Ok(("", vec![1, 0])));
+    use super::super::test;
+
     assert_eq!(
-        Base::Hexadecimal.parse_digits("FF"),
-        Ok(("", vec![0xF, 0xF]))
+        test::strip_span(Base::Decimal.parse_digits("10".into())),
+        Ok((String::new(), vec![1, 0]))
+    );
+    assert_eq!(
+        test::strip_span(Base::Hexadecimal.parse_digits("FF".into())),
+        Ok((String::new(), vec![0xF, 0xF]))
     );
 }
 
@@ -253,7 +285,7 @@ pub enum Sign {
 }
 
 impl Sign {
-    pub fn parse(input: &str) -> IResult<&str, Self> {
+    pub fn parse(input: Span) -> IResult<Span, Self> {
         alt((
             value(Self::Negative, tag("-")),
             value(Self::Positive, opt(tag("+"))),
@@ -263,7 +295,18 @@ impl Sign {
 
 #[test]
 fn sign_parses() {
-    assert_eq!(Sign::parse("+1"), Ok(("1", Sign::Positive)));
-    assert_eq!(Sign::parse("-1"), Ok(("1", Sign::Negative)));
-    assert_eq!(Sign::parse("1"), Ok(("1", Sign::Positive)));
+    use super::super::test;
+
+    assert_eq!(
+        test::strip_span(Sign::parse("+1".into())),
+        Ok(("1".to_string(), Sign::Positive))
+    );
+    assert_eq!(
+        test::strip_span(Sign::parse("-1".into()).into()),
+        Ok(("1".to_string(), Sign::Negative))
+    );
+    assert_eq!(
+        test::strip_span(Sign::parse("1".into())),
+        Ok(("1".to_string(), Sign::Positive))
+    );
 }

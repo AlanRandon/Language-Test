@@ -1,3 +1,4 @@
+use super::super::Span;
 use nom::{bytes::streaming::tag, combinator::not, multi::many0, IResult, Parser};
 
 use super::Character;
@@ -6,7 +7,7 @@ use super::Character;
 pub struct Str(pub String);
 
 impl Str {
-    pub fn parse(input: &str) -> IResult<&str, Self> {
+    pub fn parse(input: Span) -> IResult<Span, Self> {
         let (input, _) = tag("\"")(input)?;
         let (input, chars) = many0(
             not(tag("\""))
@@ -21,12 +22,14 @@ impl Str {
 
 #[test]
 fn string_parses() {
+    use super::super::test;
+
     assert_eq!(
-        Str::parse("\"hello world\""),
-        Ok(("", Str(String::from("hello world"))))
+        test::strip_span(Str::parse("\"hello world\"".into())),
+        Ok((String::new(), Str(String::from("hello world"))))
     );
     assert_eq!(
-        Str::parse("\"hello\\nworld\""),
-        Ok(("", Str(String::from("hello\nworld"))))
+        test::strip_span(Str::parse("\"hello\\nworld\"".into())),
+        Ok((String::new(), Str(String::from("hello\nworld"))))
     );
 }

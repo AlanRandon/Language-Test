@@ -3,5 +3,8 @@
 mod parser;
 
 fn main() {
-    println!("{:?}", parser::Expression::parse(include_str!("input.txt")));
+    println!(
+        "{:?}",
+        parser::Expression::parse(include_str!("input.txt").into())
+    );
 }

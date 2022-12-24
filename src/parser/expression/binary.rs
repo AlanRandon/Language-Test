@@ -1,3 +1,5 @@
+use super::super::Span;
+use super::Expression;
 use nom::{
     branch::alt,
     bytes::streaming::tag,
@@ -7,8 +9,6 @@ use nom::{
     IResult, Parser,
 };
 
-use super::Expression;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Binary {
     pub left: Box<Expression>,
@@ -17,7 +17,7 @@ pub struct Binary {
 }
 
 impl Binary {
-    pub fn parse(input: &str) -> IResult<&str, Expression> {
+    pub fn parse(input: Span) -> IResult<Span, Expression> {
         let (input, terms) = Terms::parse(input)?;
         Ok((input, terms.reduce()))
     }
@@ -33,7 +33,7 @@ pub enum Operator {
 }
 
 impl Operator {
-    fn parse(input: &str) -> IResult<&str, Self> {
+    fn parse(input: Span) -> IResult<Span, Self> {
         alt((
             value(Self::Add, tag("+")),
             value(Self::Subtract, tag("-")),
@@ -61,7 +61,7 @@ pub struct Terms {
 }
 
 impl Terms {
-    pub fn parse(input: &str) -> IResult<&str, Self> {
+    pub fn parse(input: Span) -> IResult<Span, Self> {
         let (input, left_term) = Expression::parse_term(input)?;
         let (input, right) = many0(complete(pair(Operator::parse, Expression::parse_term)))
             .map(|terms| terms.into_iter().rev().collect())
@@ -105,12 +105,12 @@ impl Terms {
 
 #[test]
 fn terms_parse() {
-    use super::super::{literal::Character, Literal};
+    use super::super::{literal::Character, test, Literal};
 
     assert_eq!(
-        Terms::parse("'a' + 'b' - 'c'"),
+        test::strip_span(Terms::parse("'a' + 'b' - 'c'".into())),
         Ok((
-            "",
+            String::new(),
             Terms {
                 left_term: Expression::Literal(Literal::Character(Character('a'))),
                 right: vec![
@@ -133,7 +133,7 @@ fn terms_reduce() {
     use super::super::{literal::Character, Literal};
 
     assert_eq!(
-        dbg!(Terms::parse("'a' + 'b' * 'c'").unwrap().1.reduce()),
+        dbg!(Terms::parse("'a' + 'b' * 'c'".into()).unwrap().1.reduce()),
         Expression::Binary(Binary {
             left: Box::new(Expression::Literal(Literal::Character(Character('a')))),
             operator: Operator::Add,

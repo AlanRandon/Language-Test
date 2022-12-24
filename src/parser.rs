@@ -5,15 +5,19 @@ use nom::{
     bytes::{complete::take_until, streaming::tag},
     character::complete::multispace1,
     combinator::{complete, value},
+    error::ParseError,
     multi::many0,
     sequence::tuple,
     IResult,
 };
+use nom_locate::{position, LocatedSpan};
 
 pub mod expression;
 pub mod literal;
 
-fn optional_whitespace(input: &str) -> IResult<&str, ()> {
+type Span<'a> = LocatedSpan<&'a str>;
+
+fn optional_whitespace(input: Span) -> IResult<Span, ()> {
     value(
         (),
         many0(complete(alt((
@@ -26,7 +30,37 @@ fn optional_whitespace(input: &str) -> IResult<&str, ()> {
 
 #[test]
 fn whitespace_parses() {
-    assert_eq!(optional_whitespace(" \n \n \r\n \t"), Ok(("", ())));
-    assert_eq!(optional_whitespace(" // comment \n "), Ok(("", ())));
-    assert_eq!(optional_whitespace(" /* comment */ "), Ok(("", ())));
+    assert_eq!(
+        optional_whitespace(LocatedSpan::new(" \n \n \r\n \t"))
+            .unwrap()
+            .0
+            .to_string(),
+        ""
+    );
+    assert_eq!(
+        optional_whitespace(LocatedSpan::new(" // comment \n "))
+            .unwrap()
+            .0
+            .to_string(),
+        ""
+    );
+    assert_eq!(
+        optional_whitespace(" /* comment */ abc".into())
+            .unwrap()
+            .0
+            .to_string(),
+        "abc"
+    );
+}
+
+#[cfg(test)]
+mod test {
+    use super::Span;
+    use nom::{error::Error, IResult};
+
+    pub fn strip_span<O>(result: IResult<Span, O>) -> IResult<String, O> {
+        result
+            .map(|(span, result)| (span.to_string(), result))
+            .map_err(|err| err.map(|err| Error::new(err.input.to_string(), err.code)))
+    }
 }

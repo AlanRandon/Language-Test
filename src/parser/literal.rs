@@ -4,6 +4,8 @@ use nom::{branch::alt, error::context, IResult, Parser};
 pub use number::{Float, Integer};
 pub use string::Str;
 
+use super::Span;
+
 pub mod boolean;
 pub mod character;
 pub mod number;
@@ -19,7 +21,7 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub fn parse(input: &str) -> IResult<&str, Self> {
+    pub fn parse(input: Span) -> IResult<Span, Self> {
         alt((
             context("boolean", Boolean::parse.map(Self::Boolean)),
             context("character", Character::parse.map(Self::Character)),
@@ -32,12 +34,13 @@ impl Literal {
 
 #[test]
 fn literal_parses() {
+    use super::test;
     use number::{Base, Sign};
 
     assert_eq!(
-        Literal::parse("10"),
+        test::strip_span(Literal::parse("10".into())),
         Ok((
-            "",
+            String::new(),
             Literal::Integer(Integer {
                 base: Base::Decimal,
                 digits: vec![1, 0],
@@ -47,9 +50,9 @@ fn literal_parses() {
     );
 
     assert_eq!(
-        Literal::parse("10.0"),
+        test::strip_span(Literal::parse("10.0".into())),
         Ok((
-            "",
+            String::new(),
             Literal::Float(Float {
                 base: Base::Decimal,
                 whole: vec![1, 0],
@@ -61,12 +64,12 @@ fn literal_parses() {
     );
 
     assert_eq!(
-        Literal::parse("'a'"),
-        Ok(("", Literal::Character(Character('a'))))
+        test::strip_span(Literal::parse("'a'".into())),
+        Ok((String::new(), Literal::Character(Character('a'))))
     );
 
     assert_eq!(
-        Literal::parse("\"a\""),
-        Ok(("", Literal::String(Str(String::from("a")))))
+        test::strip_span(Literal::parse("\"a\"".into())),
+        Ok((String::new(), Literal::String(Str(String::from("a")))))
     );
 }
