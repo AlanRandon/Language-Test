@@ -13,11 +13,7 @@ pub enum Expression {
 impl Expression {
     /// Parse an arbitary expression
     pub fn parse(input: &str) -> IResult<&str, Self> {
-        delimited(
-            optional_whitespace,
-            alt((Self::parse_term,)),
-            optional_whitespace,
-        )(input)
+        delimited(optional_whitespace, Binary::parse, optional_whitespace)(input)
     }
 
     /// Parse all non-binary terms (e.g. literals and identifiers)
@@ -28,4 +24,14 @@ impl Expression {
             optional_whitespace,
         )(input)
     }
+}
+
+#[test]
+fn expression_parses() {
+    use super::literal::Boolean;
+
+    assert_eq!(
+        Expression::parse(" \n true "),
+        Ok(("", Expression::Literal(Literal::Boolean(Boolean(true)))))
+    );
 }

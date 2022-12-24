@@ -1,25 +1,26 @@
 use nom::{
     branch::alt,
     bytes::streaming::tag,
-    combinator::{complete, map, value},
-    multi::{many0, many1},
+    combinator::{complete, value},
+    multi::many0,
     sequence::pair,
-    IResult,
+    IResult, Parser,
 };
 
 use super::Expression;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Binary {
-    left: Box<Expression>,
-    operator: Operator,
-    right: Box<Expression>,
+    pub left: Box<Expression>,
+    pub operator: Operator,
+    pub right: Box<Expression>,
 }
 
 impl Binary {
-    // fn parse(input: &str) -> IResult<&str, Expression> {
-    //     many1(alt())(input)
-    // }
+    pub fn parse(input: &str) -> IResult<&str, Expression> {
+        let (input, terms) = Terms::parse(input)?;
+        Ok((input, terms.reduce()))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,7 +44,7 @@ impl Operator {
     }
 
     // The ability of a operator to 'bind' to a term
-    fn binding_powers(&self) -> (u8, u8) {
+    const fn binding_powers(&self) -> (u8, u8) {
         match self {
             Self::Add | Self::Subtract => (10, 15),
             Self::Multiply | Self::Divide => (20, 25),
@@ -53,48 +54,49 @@ impl Operator {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct Terms {
+    // The first term in a sequence of binary expressions (e.g. `1` in `1 + 2 * 3`)
     left_term: Expression,
+    /// The operators and expressions to the right of `left_term`. stored in the reverse order to that which they appear in the expression
     right: Vec<(Operator, Expression)>,
 }
 
 impl Terms {
-    fn parse(input: &str) -> IResult<&str, Self> {
+    pub fn parse(input: &str) -> IResult<&str, Self> {
         let (input, left_term) = Expression::parse_term(input)?;
-        let (input, right) = many0(complete(pair(Operator::parse, Expression::parse_term)))(input)?;
+        let (input, right) = many0(complete(pair(Operator::parse, Expression::parse_term)))
+            .map(|terms| terms.into_iter().rev().collect())
+            .parse(input)?;
 
         Ok((input, Self { left_term, right }))
     }
 
     /// Reduces terms to one expression
-    ///
-    /// TODO: finish
-    fn reduce(self) -> Expression {
+    pub fn reduce(self) -> Expression {
         let Self {
             mut left_term,
             mut right,
         } = self;
 
         while let Some((operator, right_term)) = right.pop() {
-            let (left_binding_power, right_binding_power) = operator.binding_powers();
+            let left_bp = operator.binding_powers().1;
+            let right_bp = right.get(0).map_or(255, |(op, _)| op.binding_powers().0);
 
-            if left_binding_power > right_binding_power {
-                let right_term = Self {
-                    left_term: right_term,
-                    right: right.clone(),
-                }
-                .reduce();
-                left_term = Expression::Binary(Binary {
+            if left_bp < right_bp {
+                return Expression::Binary(Binary {
                     left: Box::new(left_term),
                     operator,
-                    right: Box::new(right_term),
-                });
-            } else {
-                left_term = Expression::Binary(Binary {
-                    left: Box::new(left_term),
-                    operator,
-                    right: Box::new(right_term),
+                    right: Box::new(Self::reduce(Self {
+                        left_term: right_term,
+                        right,
+                    })),
                 });
             }
+
+            left_term = Expression::Binary(Binary {
+                left: Box::new(left_term),
+                operator,
+                right: Box::new(right_term),
+            });
         }
 
         left_term
@@ -113,13 +115,13 @@ fn terms_parse() {
                 left_term: Expression::Literal(Literal::Character(Character('a'))),
                 right: vec![
                     (
+                        Operator::Subtract,
+                        Expression::Literal(Literal::Character(Character('c')))
+                    ),
+                    (
                         Operator::Add,
                         Expression::Literal(Literal::Character(Character('b')))
                     ),
-                    (
-                        Operator::Subtract,
-                        Expression::Literal(Literal::Character(Character('c')))
-                    )
                 ]
             }
         ))
