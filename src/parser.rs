@@ -6,7 +6,7 @@ use nom::{
     character::complete::multispace1,
     combinator::{complete, value},
     multi::many0,
-    sequence::tuple,
+    sequence::{pair, tuple},
     IResult,
 };
 use nom_locate::LocatedSpan;
@@ -22,7 +22,7 @@ fn optional_whitespace(input: Span) -> IResult<Span, ()> {
         many0(complete(alt((
             value((), multispace1),
             value((), tuple((tag("/*"), take_until("*/"), tag("*/")))),
-            value((), tuple((tag("//"), take_until("\n"), tag("\n")))),
+            value((), pair(tag("//"), take_until("\n"))),
         )))),
     )(input)
 }
