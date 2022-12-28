@@ -1,1 +1,4 @@
-true // true
+let
+    x = 10
+in
+    x ^ x

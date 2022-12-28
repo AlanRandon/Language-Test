@@ -1,25 +1,26 @@
-use self::unary::Unary;
-
-use super::{literal::Literal, optional_whitespace, Span};
+use super::{identifier::Identifier, let_in::LetIn, literal::Literal, optional_whitespace, Span};
 use binary::Binary;
 use nom::{
     branch::alt, bytes::streaming::tag, error::context, sequence::delimited, IResult, Parser,
 };
+use unary::Unary;
 
 pub mod binary;
 pub mod pratt;
 pub mod unary;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Expression {
+pub enum Expression<'a> {
     Literal(Literal),
-    Binary(Binary),
-    Unary(Unary),
+    Binary(Binary<'a>),
+    Unary(Unary<'a>),
+    Identifier(Identifier<'a>),
+    LetIn(LetIn<'a>),
 }
 
-impl Expression {
+impl<'a> Expression<'a> {
     /// Parse an arbitary expression
-    pub fn parse(input: Span) -> IResult<Span, Self> {
+    pub fn parse(input: Span<'a>) -> IResult<Span, Self> {
         delimited(
             optional_whitespace,
             context("binary operations", Binary::parse),
@@ -28,7 +29,7 @@ impl Expression {
     }
 
     /// Parse all non-binary terms (e.g. literals and identifiers)
-    pub fn parse_term(input: Span) -> IResult<Span, Self> {
+    pub fn parse_term(input: Span<'a>) -> IResult<Span, Self> {
         delimited(
             optional_whitespace,
             context("unary operations", Unary::parse),
@@ -37,12 +38,14 @@ impl Expression {
     }
 
     /// Parse all 'atoms' (e.g. literals and identifiers)
-    pub fn parse_atom(input: Span) -> IResult<Span, Self> {
+    pub fn parse_atom(input: Span<'a>) -> IResult<Span, Self> {
         delimited(
             optional_whitespace,
             alt((
+                context("let-in", LetIn::parse.map(Self::LetIn)),
                 context("literal", Literal::parse.map(Self::Literal)),
                 context("group", delimited(tag("("), Self::parse, tag(")"))),
+                context("identifier", Identifier::parse.map(Self::Identifier)),
             )),
             optional_whitespace,
         )(input)

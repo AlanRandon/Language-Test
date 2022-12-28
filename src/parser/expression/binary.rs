@@ -4,13 +4,13 @@ use nom::{branch::alt, bytes::streaming::tag, combinator::value, IResult};
 
 // A binary operation such as addition or subtraction
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Binary {
-    pub left: Box<Expression>,
+pub struct Binary<'a> {
+    pub left: Box<Expression<'a>>,
     pub operator: Operator,
-    pub right: Box<Expression>,
+    pub right: Box<Expression<'a>>,
 }
 
-impl Binary {
+impl<'a> Binary<'a> {
     pub fn parse(input: Span) -> IResult<Span, Expression> {
         let (input, terms) = Terms::parse(input)?;
         Ok((input, terms.reduce()))

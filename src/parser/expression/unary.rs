@@ -1,4 +1,7 @@
-use super::{super::Span, Expression};
+use super::{
+    super::{optional_whitespace, Span},
+    Expression,
+};
 use nom::{
     branch::alt,
     bytes::streaming::tag,
@@ -10,12 +13,12 @@ use nom::{
 
 /// A unary prefix operation, for example arithmetic or binary negation
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Unary {
-    pub operator: Operator,
-    pub expression: Box<Expression>,
+pub struct Unary<'a> {
+    pub operator: Operator<'a>,
+    pub expression: Box<Expression<'a>>,
 }
 
-impl Unary {
+impl<'a> Unary<'a> {
     /// Parses a 'term' - an expression with N prefix and postfix operators
     pub fn parse(input: Span) -> IResult<Span, Expression> {
         let (input, term) = Term::parse(input)?;
@@ -24,19 +27,23 @@ impl Unary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Operator {
+pub enum Operator<'a> {
     Negate,
     Not,
-    Access(Box<Expression>),
-    Call(Vec<Expression>),
+    Access(Box<Expression<'a>>),
+    Call(Vec<Expression<'a>>),
 }
 
-impl Operator {
+impl<'a> Operator<'a> {
     pub fn parse_prefix(input: Span) -> IResult<Span, Self> {
-        alt((value(Self::Negate, tag("-")), value(Self::Not, tag("!"))))(input)
+        let (input, result) =
+            alt((value(Self::Negate, tag("-")), value(Self::Not, tag("!"))))(input)?;
+        let (input, _) = optional_whitespace(input)?;
+        Ok((input, result))
     }
 
-    pub fn parse_postfix(input: Span) -> IResult<Span, Self> {
+    pub fn parse_postfix(input: Span<'a>) -> IResult<Span, Self> {
+        let (input, _) = optional_whitespace(input)?;
         complete(alt((
             delimited(tag("["), Expression::parse_atom, tag("]"))
                 .map(|expression| Self::Access(Box::new(expression))),
@@ -53,14 +60,14 @@ impl Operator {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Term {
-    prefix_operators: Vec<Operator>,
-    expression: Expression,
-    postfix_operators: Vec<Operator>,
+struct Term<'a> {
+    prefix_operators: Vec<Operator<'a>>,
+    expression: Expression<'a>,
+    postfix_operators: Vec<Operator<'a>>,
 }
 
-impl Term {
-    fn parse(input: Span) -> IResult<Span, Self> {
+impl<'a> Term<'a> {
+    fn parse(input: Span<'a>) -> IResult<Span, Self> {
         let (input, (prefix_operators, expression, postfix_operators)) = tuple((
             many0(Operator::parse_prefix),
             Expression::parse_atom,
@@ -77,7 +84,7 @@ impl Term {
         ))
     }
 
-    fn reduce(self) -> Expression {
+    fn reduce(self) -> Expression<'a> {
         let Self {
             mut prefix_operators,
             mut expression,

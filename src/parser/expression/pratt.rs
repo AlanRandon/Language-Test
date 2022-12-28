@@ -7,15 +7,15 @@ use nom::sequence::pair;
 use nom::{IResult, Parser};
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Terms {
+pub struct Terms<'a> {
     // The first term in a sequence of binary expressions (e.g. `1` in `1 + 2 * 3`)
-    left_term: Expression,
+    left_term: Expression<'a>,
     /// The operators and expressions to the right of `left_term`. stored in the reverse order to that which they appear in the expression
-    right: Vec<(Operator, Expression)>,
+    right: Vec<(Operator, Expression<'a>)>,
 }
 
-impl Terms {
-    pub fn parse(input: Span) -> IResult<Span, Self> {
+impl<'a> Terms<'a> {
+    pub fn parse(input: Span<'a>) -> IResult<Span, Self> {
         let (input, left_term) = Expression::parse_term(input)?;
         let (input, right) = many0(complete(pair(Operator::parse, Expression::parse_term)))
             .map(|terms| terms.into_iter().rev().collect())
@@ -25,7 +25,7 @@ impl Terms {
     }
 
     /// Reduces terms to one expression
-    pub fn reduce(self) -> Expression {
+    pub fn reduce(self) -> Expression<'a> {
         let Self {
             mut left_term,
             mut right,

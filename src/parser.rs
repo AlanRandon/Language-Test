@@ -12,6 +12,8 @@ use nom::{
 use nom_locate::LocatedSpan;
 
 pub mod expression;
+pub mod identifier;
+pub mod let_in;
 pub mod literal;
 
 type Span<'a> = LocatedSpan<&'a str>;
