@@ -41,9 +41,9 @@ impl Operator {
         alt((
             value(Self::Add, tag("+")),
             value(Self::Subtract, tag("-")),
+            value(Self::Exponent, tag("**")),
             value(Self::Multiply, tag("*")),
             value(Self::Divide, tag("/")),
-            value(Self::Exponent, tag("**")),
             value(Self::Modulo, tag("%")),
             value(Self::And, tag("&&")),
             value(Self::Or, tag("||")),
@@ -57,7 +57,7 @@ impl Operator {
         ))(input)
     }
 
-    // The ability of a operator to 'bind' to a term
+    /// The ability of a operator to 'bind' to a term
     pub const fn binding_powers(&self) -> (u8, u8) {
         match self {
             Self::Add | Self::Subtract => (10, 15),
