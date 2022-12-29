@@ -49,10 +49,10 @@ impl Operator {
             value(Self::Or, tag("||")),
             value(Self::Xor, tag("^")),
             value(Self::Equal, tag("==")),
-            value(Self::LessThan, tag("<")),
             value(Self::LessThanOrEqual, tag("<=")),
-            value(Self::GreaterThan, tag(">")),
+            value(Self::LessThan, tag("<")),
             value(Self::GreaterThanOrEqual, tag(">=")),
+            value(Self::GreaterThan, tag(">")),
             value(Self::NotEqual, tag("!=")),
         ))(input)
     }
