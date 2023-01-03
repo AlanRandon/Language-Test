@@ -1,4 +1,5 @@
 let
     x = 10
+    double = fn(Int x) -> Int { x * 2 }
 in
-    x ** x
+    double(x ** x)

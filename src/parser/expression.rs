@@ -1,4 +1,7 @@
-use super::{identifier::Identifier, let_in::LetIn, literal::Literal, optional_whitespace, Span};
+use super::{
+    function::Function, identifier::Identifier, let_in::LetIn, literal::Literal,
+    optional_whitespace, Span,
+};
 use binary::Binary;
 use nom::{
     branch::alt, bytes::streaming::tag, error::context, sequence::delimited, IResult, Parser,
@@ -16,6 +19,7 @@ pub enum Expression<'a> {
     Unary(Unary<'a>),
     Identifier(Identifier<'a>),
     LetIn(LetIn<'a>),
+    Function(Function<'a>),
 }
 
 impl<'a> Expression<'a> {
@@ -43,6 +47,7 @@ impl<'a> Expression<'a> {
             optional_whitespace,
             alt((
                 context("let-in", LetIn::parse.map(Self::LetIn)),
+                context("function", Function::parse.map(Self::Function)),
                 context("literal", Literal::parse.map(Self::Literal)),
                 context("group", delimited(tag("("), Self::parse, tag(")"))),
                 context("identifier", Identifier::parse.map(Self::Identifier)),

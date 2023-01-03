@@ -45,9 +45,9 @@ impl<'a> Operator<'a> {
     pub fn parse_postfix(input: Span<'a>) -> IResult<Span, Self> {
         let (input, _) = optional_whitespace(input)?;
         complete(alt((
-            delimited(tag("["), Expression::parse_atom, tag("]"))
+            delimited(tag("["), Expression::parse, tag("]"))
                 .map(|expression| Self::Access(Box::new(expression))),
-            delimited(tag("("), many0(Expression::parse_atom), tag(")")).map(Self::Call),
+            delimited(tag("("), many0(Expression::parse), tag(")")).map(Self::Call),
         )))(input)
     }
 
