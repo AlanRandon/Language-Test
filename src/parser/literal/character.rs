@@ -1,8 +1,4 @@
-use super::super::Span;
-use nom::{
-    branch::alt, bytes::streaming::tag, character::complete::satisfy, combinator::value, IResult,
-    Parser,
-};
+use super::super::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Character(pub char);

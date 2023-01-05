@@ -1,6 +1,4 @@
-use nom::{IResult, Parser};
-
-use super::{identifier::Identifier, Span};
+use super::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type<'a>(pub Identifier<'a>);

@@ -1,5 +1,4 @@
-use super::{identifier::Identifier, optional_whitespace, Expression, Span};
-use nom::{bytes::streaming::tag, multi::many1, sequence::delimited, IResult};
+use super::prelude::*;
 
 /// A let-in expression, for example
 ///
@@ -17,9 +16,9 @@ pub struct LetIn<'a> {
 
 impl<'a> LetIn<'a> {
     pub fn parse(input: Span<'a>) -> IResult<Span, Self> {
-        let (input, _) = delimited(optional_whitespace, tag("let"), optional_whitespace)(input)?;
+        let (input, _) = delimited(whitespace::optional, tag("let"), whitespace::optional)(input)?;
         let (input, assignments) = many1(Assignment::parse)(input)?;
-        let (input, _) = delimited(optional_whitespace, tag("in"), optional_whitespace)(input)?;
+        let (input, _) = delimited(whitespace::optional, tag("in"), whitespace::optional)(input)?;
         let (input, expression) = Expression::parse(input)?;
 
         Ok((
@@ -34,14 +33,6 @@ impl<'a> LetIn<'a> {
 
 #[test]
 fn let_in_parses() {
-    use super::{
-        literal::{
-            number::{Base, Sign},
-            Integer,
-        },
-        test, Literal,
-    };
-
     assert_eq!(
         test::strip_span(LetIn::parse("let a_useless_value = 1 in 1".into())),
         Ok((
@@ -51,16 +42,16 @@ fn let_in_parses() {
                     identifier: Identifier(unsafe {
                         Span::new_from_raw_offset(4, 1, "a_useless_value", ())
                     }),
-                    value: Expression::Literal(Literal::Integer(Integer {
-                        base: Base::Decimal,
+                    value: Expression::Literal(Literal::Integer(literal::Integer {
+                        base: number::Base::Decimal,
                         digits: vec![1],
-                        sign: Sign::Positive
+                        sign: number::Sign::Positive
                     }))
                 }],
-                expression: Box::new(Expression::Literal(Literal::Integer(Integer {
-                    base: Base::Decimal,
+                expression: Box::new(Expression::Literal(Literal::Integer(literal::Integer {
+                    base: number::Base::Decimal,
                     digits: vec![1],
-                    sign: Sign::Positive
+                    sign: number::Sign::Positive
                 })))
             }
         ))
@@ -76,7 +67,7 @@ pub struct Assignment<'a> {
 impl<'a> Assignment<'a> {
     pub fn parse(input: Span<'a>) -> IResult<Span, Self> {
         let (input, identifier) = Identifier::parse(input)?;
-        let (input, _) = delimited(optional_whitespace, tag("="), optional_whitespace)(input)?;
+        let (input, _) = delimited(whitespace::optional, tag("="), whitespace::optional)(input)?;
         let (input, value) = Expression::parse(input)?;
 
         Ok((input, Self { identifier, value }))
@@ -85,24 +76,16 @@ impl<'a> Assignment<'a> {
 
 #[test]
 fn assignment_parses() {
-    use super::{
-        literal::{
-            number::{Base, Sign},
-            Integer,
-        },
-        test, Literal,
-    };
-
     assert_eq!(
         test::strip_span(Assignment::parse("a = 1".into())),
         Ok((
             String::new(),
             Assignment {
                 identifier: Identifier(Span::new("a")),
-                value: Expression::Literal(Literal::Integer(Integer {
-                    base: Base::Decimal,
+                value: Expression::Literal(Literal::Integer(literal::Integer {
+                    base: number::Base::Decimal,
                     digits: vec![1],
-                    sign: Sign::Positive
+                    sign: number::Sign::Positive
                 }))
             }
         ))

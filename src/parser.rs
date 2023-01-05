@@ -1,75 +1,41 @@
-pub use expression::Expression;
-pub use literal::Literal;
-use nom::{
-    branch::alt,
-    bytes::{complete::take_until, streaming::tag},
-    character::complete::multispace1,
-    combinator::{complete, value},
-    multi::{many0, many1},
-    sequence::{pair, tuple},
-    IResult,
-};
-use nom_locate::LocatedSpan;
-
 pub mod expression;
 pub mod function;
 pub mod identifier;
 pub mod let_in;
 pub mod literal;
 pub mod types;
+pub mod whitespace;
 
-type Span<'a> = LocatedSpan<&'a str>;
+pub mod prelude {
+    #[cfg(test)]
+    pub use super::test;
+    pub use super::{
+        expression::{self, Expression},
+        function::Function,
+        identifier::Identifier,
+        let_in::LetIn,
+        literal::{self, number, Literal},
+        types::Type,
+        whitespace,
+    };
+    pub use nom::{
+        branch::alt,
+        bytes::complete::{tag, take_until, take_while},
+        character::complete::{multispace1, one_of, satisfy},
+        combinator::{complete, consumed, not, opt, value},
+        error::context,
+        multi::{many0, many1, separated_list0},
+        sequence::{delimited, pair, terminated, tuple},
+        IResult, Parser,
+    };
+    pub use nom_locate::LocatedSpan;
 
-fn optional_whitespace(input: Span) -> IResult<Span, ()> {
-    value(
-        (),
-        many0(complete(alt((
-            value((), multispace1),
-            value((), tuple((tag("/*"), take_until("*/"), tag("*/")))),
-            value((), pair(tag("//"), take_until("\n"))),
-        )))),
-    )(input)
-}
-
-fn required_whitespace(input: Span) -> IResult<Span, ()> {
-    value(
-        (),
-        many1(complete(alt((
-            value((), multispace1),
-            value((), tuple((tag("/*"), take_until("*/"), tag("*/")))),
-            value((), pair(tag("//"), take_until("\n"))),
-        )))),
-    )(input)
-}
-
-#[test]
-fn whitespace_parses() {
-    assert_eq!(
-        optional_whitespace(LocatedSpan::new(" \n \n \r\n \t"))
-            .unwrap()
-            .0
-            .to_string(),
-        ""
-    );
-    assert_eq!(
-        optional_whitespace(LocatedSpan::new(" // comment \n "))
-            .unwrap()
-            .0
-            .to_string(),
-        ""
-    );
-    assert_eq!(
-        optional_whitespace(" /* comment */ abc".into())
-            .unwrap()
-            .0
-            .to_string(),
-        "abc"
-    );
+    pub type Span<'a> = LocatedSpan<&'a str>;
 }
 
 #[cfg(test)]
-mod test {
-    use super::Span;
+pub mod test {
+    use super::prelude::*;
     use nom::{error::Error, IResult};
 
     pub fn strip_span<O>(result: IResult<Span, O>) -> IResult<String, O> {

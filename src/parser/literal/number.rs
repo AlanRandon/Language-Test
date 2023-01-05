@@ -1,205 +1,9 @@
-use super::super::Span;
-use nom::{
-    branch::alt,
-    bytes::complete::tag,
-    character::complete::one_of,
-    combinator::{opt, value},
-    multi::many1,
-    sequence::terminated,
-    IResult, Parser,
-};
+use super::super::prelude::*;
+pub use float::Float;
+pub use integer::Integer;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Integer {
-    pub base: Base,
-    pub digits: Vec<u8>,
-    pub sign: Sign,
-}
-
-impl Integer {
-    pub fn parse(input: Span) -> IResult<Span, Self> {
-        let (input, sign) = Sign::parse(input)?;
-        let (input, base) = Base::parse(input)?;
-        let (input, digits) = base.parse_digits(input)?;
-
-        Ok((input, Self { base, digits, sign }))
-    }
-}
-
-#[test]
-fn integer_parses() {
-    use super::super::test;
-
-    assert_eq!(
-        test::strip_span(Integer::parse("42".into())),
-        Ok((
-            String::new(),
-            Integer {
-                base: Base::Decimal,
-                digits: vec![4, 2],
-                sign: Sign::Positive,
-            }
-        ))
-    );
-    assert_eq!(
-        test::strip_span(Integer::parse("0xff".into())),
-        Ok((
-            String::new(),
-            Integer {
-                base: Base::Hexadecimal,
-                digits: vec![0xf, 0xf],
-                sign: Sign::Positive,
-            }
-        ))
-    );
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Float {
-    pub base: Base,
-    pub whole: Vec<u8>,
-    pub fractional: Vec<u8>,
-    pub sign: Sign,
-    pub exponent: Option<Exponent>,
-}
-
-impl Float {
-    pub fn parse(input: Span) -> IResult<Span, Self> {
-        let (input, sign) = Sign::parse(input)?;
-        let (input, base) = Base::parse(input)?;
-        let (input, whole) = opt(|input| base.parse_digits(input))
-            .map(Option::unwrap_or_default)
-            .parse(input)?;
-
-        let (input, _) = tag(".")(input)?;
-        let (input, fractional) = base.parse_digits(input)?;
-
-        let (input, exponent) = if base == Base::Decimal {
-            Exponent::parse(input)?
-        } else {
-            (input, None)
-        };
-
-        Ok((
-            input,
-            Self {
-                base,
-                whole,
-                fractional,
-                sign,
-                exponent,
-            },
-        ))
-    }
-}
-
-#[test]
-fn float_parses() {
-    use super::super::test;
-
-    assert_eq!(
-        test::strip_span(Float::parse(".5".into())),
-        Ok((
-            String::new(),
-            Float {
-                base: Base::Decimal,
-                whole: Vec::new(),
-                fractional: vec![5],
-                sign: Sign::Positive,
-                exponent: None
-            }
-        ))
-    );
-    assert_eq!(
-        test::strip_span(Float::parse("4.2".into())),
-        Ok((
-            String::new(),
-            Float {
-                base: Base::Decimal,
-                whole: vec![4],
-                fractional: vec![2],
-                sign: Sign::Positive,
-                exponent: None
-            }
-        ))
-    );
-    assert_eq!(
-        test::strip_span(Float::parse("0xff.0".into())),
-        Ok((
-            String::new(),
-            Float {
-                base: Base::Hexadecimal,
-                whole: vec![0xf, 0xf],
-                fractional: vec![0],
-                sign: Sign::Positive,
-                exponent: None
-            }
-        ))
-    );
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Exponent {
-    pub whole: Vec<u8>,
-    pub fractional: Vec<u8>,
-    pub sign: Sign,
-}
-
-impl Exponent {
-    pub fn parse(input: Span) -> IResult<Span, Option<Self>> {
-        let (input, Some(_)) = opt(alt((tag("e"), tag("E"))))(input)? else {
-            return Ok((input, None))
-        };
-
-        let (input, sign) = Sign::parse(input)?;
-        let (input, whole) = Base::Decimal.parse_digits(input)?;
-
-        let (input, (_, fractional)) = opt(tag("."))
-            .and(opt(|input| Base::Decimal.parse_digits(input)).map(Option::unwrap_or_default))
-            .parse(input)?;
-
-        Ok((
-            input,
-            Some(Self {
-                whole,
-                fractional,
-                sign,
-            }),
-        ))
-    }
-}
-
-#[test]
-fn exponent_parses() {
-    use super::super::test;
-
-    assert_eq!(
-        test::strip_span(Exponent::parse(";".into())),
-        Ok((";".to_string(), None))
-    );
-    assert_eq!(
-        test::strip_span(Exponent::parse("e1;".into())),
-        Ok((
-            ";".to_string(),
-            Some(Exponent {
-                whole: vec![1],
-                fractional: Vec::new(),
-                sign: Sign::Positive
-            })
-        ))
-    );
-    assert_eq!(
-        test::strip_span(Exponent::parse("e-1.1;".into())),
-        Ok((
-            ";".to_string(),
-            Some(Exponent {
-                whole: vec![1],
-                fractional: vec![1],
-                sign: Sign::Negative
-            })
-        ))
-    );
-}
+mod float;
+mod integer;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Base {
@@ -239,9 +43,19 @@ impl Base {
 }
 
 #[test]
-fn base_parses() {
-    use super::super::test;
+fn digits_parse() {
+    assert_eq!(
+        test::strip_span(Base::Decimal.parse_digits("10".into())),
+        Ok((String::new(), vec![1, 0]))
+    );
+    assert_eq!(
+        test::strip_span(Base::Hexadecimal.parse_digits("FF".into())),
+        Ok((String::new(), vec![0xF, 0xF]))
+    );
+}
 
+#[test]
+fn base_parses() {
     assert_eq!(
         test::strip_span(Base::parse("0b1".into())),
         Ok(("1".to_string(), Base::Binary))
@@ -264,20 +78,6 @@ fn base_parses() {
     );
 }
 
-#[test]
-fn digits_parse() {
-    use super::super::test;
-
-    assert_eq!(
-        test::strip_span(Base::Decimal.parse_digits("10".into())),
-        Ok((String::new(), vec![1, 0]))
-    );
-    assert_eq!(
-        test::strip_span(Base::Hexadecimal.parse_digits("FF".into())),
-        Ok((String::new(), vec![0xF, 0xF]))
-    );
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Sign {
     Positive,
@@ -295,8 +95,6 @@ impl Sign {
 
 #[test]
 fn sign_parses() {
-    use super::super::test;
-
     assert_eq!(
         test::strip_span(Sign::parse("+1".into())),
         Ok(("1".to_string(), Sign::Positive))

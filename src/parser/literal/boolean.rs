@@ -1,5 +1,4 @@
-use super::super::Span;
-use nom::{branch::alt, bytes::streaming::tag, combinator::value, IResult, Parser};
+use super::super::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Boolean(pub bool);
@@ -14,8 +13,6 @@ impl Boolean {
 
 #[test]
 fn boolean_parses() {
-    use super::super::test;
-
     assert_eq!(
         test::strip_span(Boolean::parse("true".into())),
         Ok((String::new(), Boolean(true)))

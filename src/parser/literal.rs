@@ -1,10 +1,8 @@
+pub use super::prelude::*;
 pub use boolean::Boolean;
 pub use character::Character;
-use nom::{branch::alt, error::context, IResult, Parser};
 pub use number::{Float, Integer};
-pub use string::Str;
-
-use super::Span;
+pub use string::String;
 
 pub mod boolean;
 pub mod character;
@@ -16,7 +14,7 @@ pub enum Literal {
     Integer(Integer),
     Float(Float),
     Character(Character),
-    String(Str),
+    String(String),
     Boolean(Boolean),
 }
 
@@ -25,7 +23,7 @@ impl Literal {
         alt((
             context("boolean", Boolean::parse.map(Self::Boolean)),
             context("character", Character::parse.map(Self::Character)),
-            context("string", Str::parse.map(Self::String)),
+            context("string", String::parse.map(Self::String)),
             context("float", Float::parse.map(Self::Float)),
             context("integer", Integer::parse.map(Self::Integer)),
         ))(input)
@@ -34,17 +32,14 @@ impl Literal {
 
 #[test]
 fn literal_parses() {
-    use super::test;
-    use number::{Base, Sign};
-
     assert_eq!(
         test::strip_span(Literal::parse("10".into())),
         Ok((
-            String::new(),
+            std::string::String::new(),
             Literal::Integer(Integer {
-                base: Base::Decimal,
+                base: number::Base::Decimal,
                 digits: vec![1, 0],
-                sign: Sign::Positive
+                sign: number::Sign::Positive
             })
         ))
     );
@@ -52,12 +47,12 @@ fn literal_parses() {
     assert_eq!(
         test::strip_span(Literal::parse("10.0".into())),
         Ok((
-            String::new(),
+            std::string::String::new(),
             Literal::Float(Float {
-                base: Base::Decimal,
+                base: number::Base::Decimal,
                 whole: vec![1, 0],
                 fractional: vec![0],
-                sign: Sign::Positive,
+                sign: number::Sign::Positive,
                 exponent: None
             })
         ))
@@ -65,11 +60,17 @@ fn literal_parses() {
 
     assert_eq!(
         test::strip_span(Literal::parse("'a'".into())),
-        Ok((String::new(), Literal::Character(Character('a'))))
+        Ok((
+            std::string::String::new(),
+            Literal::Character(Character('a'))
+        ))
     );
 
     assert_eq!(
         test::strip_span(Literal::parse("\"a\"".into())),
-        Ok((String::new(), Literal::String(Str(String::from("a")))))
+        Ok((
+            std::string::String::new(),
+            Literal::String(String(std::string::String::from("a")))
+        ))
     );
 }

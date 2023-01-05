@@ -1,11 +1,5 @@
-use super::{
-    function::Function, identifier::Identifier, let_in::LetIn, literal::Literal,
-    optional_whitespace, Span,
-};
+use super::prelude::*;
 use binary::Binary;
-use nom::{
-    branch::alt, bytes::streaming::tag, error::context, sequence::delimited, IResult, Parser,
-};
 use unary::Unary;
 
 pub mod binary;
@@ -26,25 +20,25 @@ impl<'a> Expression<'a> {
     /// Parse an arbitary expression
     pub fn parse(input: Span<'a>) -> IResult<Span, Self> {
         delimited(
-            optional_whitespace,
+            whitespace::optional,
             context("binary operations", Binary::parse),
-            optional_whitespace,
+            whitespace::optional,
         )(input)
     }
 
     /// Parse all non-binary terms (e.g. literals and identifiers)
     pub fn parse_term(input: Span<'a>) -> IResult<Span, Self> {
         delimited(
-            optional_whitespace,
+            whitespace::optional,
             context("unary operations", Unary::parse),
-            optional_whitespace,
+            whitespace::optional,
         )(input)
     }
 
     /// Parse all 'atoms' (e.g. literals and identifiers)
     pub fn parse_atom(input: Span<'a>) -> IResult<Span, Self> {
         delimited(
-            optional_whitespace,
+            whitespace::optional,
             alt((
                 context("let-in", LetIn::parse.map(Self::LetIn)),
                 context("function", Function::parse.map(Self::Function)),
@@ -52,7 +46,7 @@ impl<'a> Expression<'a> {
                 context("group", delimited(tag("("), Self::parse, tag(")"))),
                 context("identifier", Identifier::parse.map(Self::Identifier)),
             )),
-            optional_whitespace,
+            whitespace::optional,
         )(input)
     }
 }

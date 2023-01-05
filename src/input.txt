@@ -1,5 +1,1 @@
-let
-    x = 10
-    double = fn(Int x) -> Int { x * 2 }
-in
-    double(x ** x)
+true

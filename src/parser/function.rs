@@ -1,13 +1,4 @@
-use super::{
-    identifier::Identifier, optional_whitespace, required_whitespace, types::Type, Expression, Span,
-};
-use nom::{
-    bytes::streaming::tag,
-    combinator::{complete, opt},
-    multi::separated_list0,
-    sequence::{delimited, pair, terminated, tuple},
-    IResult, Parser,
-};
+use super::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Function<'a> {
@@ -18,18 +9,18 @@ pub struct Function<'a> {
 
 impl<'a> Function<'a> {
     pub fn parse(input: Span<'a>) -> IResult<Span<'a>, Self> {
-        let (input, _) = delimited(optional_whitespace, tag("fn"), optional_whitespace)(input)?;
+        let (input, _) = delimited(whitespace::optional, tag("fn"), whitespace::optional)(input)?;
         let (input, parameters) = delimited(
-            pair(tag("("), optional_whitespace),
+            pair(tag("("), whitespace::optional),
             Parameters::parse,
-            pair(optional_whitespace, tag(")")),
+            pair(whitespace::optional, tag(")")),
         )(input)?;
-        let (input, _) = tuple((optional_whitespace, tag("->"), optional_whitespace))(input)?;
+        let (input, _) = tuple((whitespace::optional, tag("->"), whitespace::optional))(input)?;
         let (input, return_type) = Type::parse(input)?;
         let (input, body) = delimited(
-            optional_whitespace,
+            whitespace::optional,
             delimited(tag("{"), Expression::parse, tag("}")),
-            optional_whitespace,
+            whitespace::optional,
         )(input)?;
         Ok((
             input,
@@ -44,12 +35,6 @@ impl<'a> Function<'a> {
 
 #[test]
 fn function_parses() {
-    use super::{
-        literal::number::{Base, Sign},
-        literal::Integer,
-        test, Literal,
-    };
-
     assert_eq!(
         test::strip_span(Function::parse(
             "fn(Int64 x, Int64 y) -> Int64 { 1 }".into()
@@ -74,10 +59,10 @@ fn function_parses() {
                 return_type: Type(Identifier(unsafe {
                     Span::new_from_raw_offset(24, 1, "Int64", ())
                 })),
-                body: Box::new(Expression::Literal(Literal::Integer(Integer {
-                    base: Base::Decimal,
+                body: Box::new(Expression::Literal(Literal::Integer(literal::Integer {
+                    base: number::Base::Decimal,
                     digits: vec![1],
-                    sign: Sign::Positive
+                    sign: number::Sign::Positive
                 })))
             }
         ))
@@ -91,15 +76,15 @@ impl<'a> Parameters<'a> {
     fn parse(input: Span<'a>) -> IResult<Span<'a>, Self> {
         let parse_seperator = |input| {
             complete(delimited(
-                optional_whitespace,
+                whitespace::optional,
                 tag(","),
-                optional_whitespace,
+                whitespace::optional,
             ))(input)
         };
         terminated(
             separated_list0(
                 parse_seperator,
-                tuple((Type::parse, required_whitespace, Identifier::parse))
+                tuple((Type::parse, whitespace::required, Identifier::parse))
                     .map(|(param_type, _, name)| (param_type, name)),
             ),
             opt(parse_seperator),
@@ -111,8 +96,6 @@ impl<'a> Parameters<'a> {
 
 #[test]
 fn parameters_parse() {
-    use super::test;
-
     assert_eq!(
         test::strip_span(Parameters::parse("Int64 x, Int64 y".into())),
         Ok((

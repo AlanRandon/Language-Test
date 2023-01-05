@@ -1,15 +1,4 @@
-use super::{
-    super::{optional_whitespace, Span},
-    Expression,
-};
-use nom::{
-    branch::alt,
-    bytes::streaming::tag,
-    combinator::{complete, value},
-    multi::many0,
-    sequence::{delimited, tuple},
-    IResult, Parser,
-};
+use super::super::prelude::*;
 
 /// A unary prefix operation, for example arithmetic or binary negation
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,12 +27,12 @@ impl<'a> Operator<'a> {
     pub fn parse_prefix(input: Span) -> IResult<Span, Self> {
         let (input, result) =
             alt((value(Self::Negate, tag("-")), value(Self::Not, tag("!"))))(input)?;
-        let (input, _) = optional_whitespace(input)?;
+        let (input, _) = whitespace::optional(input)?;
         Ok((input, result))
     }
 
     pub fn parse_postfix(input: Span<'a>) -> IResult<Span, Self> {
-        let (input, _) = optional_whitespace(input)?;
+        let (input, _) = whitespace::optional(input)?;
         complete(alt((
             delimited(tag("["), Expression::parse, tag("]"))
                 .map(|expression| Self::Access(Box::new(expression))),
@@ -123,20 +112,15 @@ impl<'a> Term<'a> {
 
 #[test]
 fn term_parses() {
-    use super::super::{
-        literal::{number, Integer, Str},
-        test, Literal,
-    };
-
     assert_eq!(
         test::strip_span(Term::parse("!\"a\"[1]".into())),
         Ok((
             String::new(),
             Term {
                 prefix_operators: vec![Operator::Not],
-                expression: Expression::Literal(Literal::String(Str("a".to_string()))),
+                expression: Expression::Literal(Literal::String(literal::String("a".to_string()))),
                 postfix_operators: vec![Operator::Access(Box::new(Expression::Literal(
-                    Literal::Integer(Integer {
+                    Literal::Integer(literal::Integer {
                         base: number::Base::Decimal,
                         digits: vec![1],
                         sign: number::Sign::Positive
@@ -149,11 +133,6 @@ fn term_parses() {
 
 #[test]
 fn term_reduces() {
-    use super::super::{
-        literal::{number, Integer, Str},
-        test, Literal,
-    };
-
     assert_eq!(
         test::strip_span(Term::parse("!\"a\"[1]".into()))
             .map(|(input, result)| (input, Term::reduce(result))),
@@ -163,15 +142,15 @@ fn term_reduces() {
                 operator: Operator::Not,
                 expression: Box::new(Expression::Unary(Unary {
                     operator: Operator::Access(Box::new(Expression::Literal(Literal::Integer(
-                        Integer {
+                        literal::Integer {
                             base: number::Base::Decimal,
                             digits: vec![1],
                             sign: number::Sign::Positive
                         }
                     )))),
-                    expression: Box::new(Expression::Literal(Literal::String(
-                        Str("a".to_string())
-                    )))
+                    expression: Box::new(Expression::Literal(Literal::String(literal::String(
+                        "a".to_string()
+                    ))))
                 }))
             })
         ))

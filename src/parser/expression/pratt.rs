@@ -1,10 +1,7 @@
-use super::super::Span;
-use super::binary::Binary;
-use super::{binary::Operator, Expression};
-use nom::combinator::complete;
-use nom::multi::many0;
-use nom::sequence::pair;
-use nom::{IResult, Parser};
+use super::{
+    super::prelude::*,
+    binary::{Binary, Operator},
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Terms<'a> {
@@ -59,22 +56,20 @@ impl<'a> Terms<'a> {
 
 #[test]
 fn terms_parse() {
-    use super::super::{literal::Character, test, Literal};
-
     assert_eq!(
         test::strip_span(Terms::parse("'a' + 'b' - 'c'".into())),
         Ok((
             String::new(),
             Terms {
-                left_term: Expression::Literal(Literal::Character(Character('a'))),
+                left_term: Expression::Literal(Literal::Character(literal::Character('a'))),
                 right: vec![
                     (
                         Operator::Subtract,
-                        Expression::Literal(Literal::Character(Character('c')))
+                        Expression::Literal(Literal::Character(literal::Character('c')))
                     ),
                     (
                         Operator::Add,
-                        Expression::Literal(Literal::Character(Character('b')))
+                        Expression::Literal(Literal::Character(literal::Character('b')))
                     ),
                 ]
             }
@@ -84,17 +79,21 @@ fn terms_parse() {
 
 #[test]
 fn terms_reduce() {
-    use super::super::{literal::Character, Literal};
-
     assert_eq!(
         dbg!(Terms::parse("'a' + 'b' * 'c'".into()).unwrap().1.reduce()),
         Expression::Binary(Binary {
-            left: Box::new(Expression::Literal(Literal::Character(Character('a')))),
+            left: Box::new(Expression::Literal(Literal::Character(literal::Character(
+                'a'
+            )))),
             operator: Operator::Add,
             right: Box::new(Expression::Binary(Binary {
-                left: Box::new(Expression::Literal(Literal::Character(Character('b')))),
+                left: Box::new(Expression::Literal(Literal::Character(literal::Character(
+                    'b'
+                )))),
                 operator: Operator::Multiply,
-                right: Box::new(Expression::Literal(Literal::Character(Character('c'))))
+                right: Box::new(Expression::Literal(Literal::Character(literal::Character(
+                    'c'
+                ))))
             }))
         })
     );

@@ -1,8 +1,4 @@
-use super::Span;
-use nom::{
-    bytes::complete::take_while, character::complete::satisfy, combinator::consumed,
-    sequence::pair, IResult, Parser,
-};
+use super::prelude::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Identifier<'a>(pub Span<'a>);

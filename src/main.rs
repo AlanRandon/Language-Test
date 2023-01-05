@@ -1,10 +1,18 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
+use parser::prelude::*;
+
+use crate::interpreter::Evaluates;
+
+mod interpreter;
 mod parser;
 
 fn main() {
     println!(
         "{:?}",
-        parser::Expression::parse(include_str!("input.txt").into())
+        Expression::parse(include_str!("input.txt").into())
+            .unwrap()
+            .1
+            .evaulate()
     );
 }
