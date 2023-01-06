@@ -2,15 +2,15 @@ use super::super::prelude::*;
 pub use float::Float;
 pub use integer::Integer;
 
-mod float;
-mod integer;
+pub mod float;
+pub mod integer;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Base {
-    Decimal,
-    Hexadecimal,
-    Binary,
-    Octal,
+    Decimal = 10,
+    Hexadecimal = 16,
+    Binary = 2,
+    Octal = 8,
 }
 
 impl Base {

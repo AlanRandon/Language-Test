@@ -2,7 +2,7 @@
 
 use parser::prelude::*;
 
-use crate::interpreter::Evaluates;
+use crate::interpreter::{Evaluates, Scope};
 
 mod interpreter;
 mod parser;
@@ -13,6 +13,6 @@ fn main() {
         Expression::parse(include_str!("input.txt").into())
             .unwrap()
             .1
-            .evaulate()
+            .evaulate(Scope::default())
     );
 }
