@@ -1,8 +1,7 @@
 use super::super::{Type, Value};
-use crate::parser::literal::{
-    number::{float::Exponent, Sign},
-    Float,
-};
+use crate::parser::prelude::*;
+use literal::Float;
+use number::{float::Exponent, Sign};
 
 impl From<Float> for Value {
     fn from(value: Float) -> Self {
@@ -27,7 +26,7 @@ impl From<Float> for f64 {
 
         let (_, whole_value) = whole
             .into_iter()
-            .fold((1, 0.0), |(place_value, value), digit| {
+            .fold((0, 0.0), |(place_value, value), digit| {
                 (
                     place_value + 1,
                     Self::from(digit).mul_add(Self::from(base).powi(place_value), value),
@@ -53,6 +52,47 @@ impl From<Float> for f64 {
     }
 }
 
+#[test]
+#[allow(clippy::float_cmp)]
+fn float_evaulates() {
+    assert_eq!(
+        <Float as std::convert::Into<f64>>::into(Float {
+            base: number::Base::Decimal,
+            whole: vec![1],
+            fractional: Vec::new(),
+            sign: Sign::Positive,
+            exponent: None,
+        }),
+        1.0f64
+    );
+
+    assert_eq!(
+        <Float as std::convert::Into<f64>>::into(Float {
+            base: number::Base::Hexadecimal,
+            whole: vec![0xf, 0xf],
+            fractional: vec![0x8],
+            sign: Sign::Negative,
+            exponent: None,
+        }),
+        -255.5f64
+    );
+
+    assert_eq!(
+        <Float as std::convert::Into<f64>>::into(Float {
+            base: number::Base::Hexadecimal,
+            whole: vec![1],
+            fractional: Vec::new(),
+            sign: Sign::Positive,
+            exponent: Some(Exponent {
+                whole: vec![3],
+                fractional: Vec::new(),
+                sign: Sign::Positive
+            }),
+        }),
+        1000f64
+    );
+}
+
 impl From<Exponent> for f64 {
     fn from(value: Exponent) -> Self {
         let Exponent {
@@ -63,7 +103,7 @@ impl From<Exponent> for f64 {
 
         let (_, whole_value) = whole
             .into_iter()
-            .fold((1, 0.0), |(place_value, value), digit| {
+            .fold((0, 0.0), |(place_value, value), digit| {
                 (
                     place_value + 1,
                     Self::from(digit).mul_add(10f64.powi(place_value), value),
