@@ -8,11 +8,12 @@ mod interpreter;
 mod parser;
 
 fn main() {
-    println!(
-        "{:?}",
-        Expression::parse(include_str!("input.txt").into())
-            .unwrap()
-            .1
-            .evaulate(Scope::default())
-    );
+    // println!(
+    //     "{:?}",
+    //     Expression::parse(include_str!("input.txt").into())
+    //         .unwrap()
+    //         .1
+    //         .evaulate(Scope::default())
+    // );
+    println!("{:#?}", Expression::parse(include_str!("input.txt").into()))
 }

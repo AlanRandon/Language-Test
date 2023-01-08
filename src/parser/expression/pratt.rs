@@ -30,7 +30,7 @@ impl<'a> Terms<'a> {
 
         while let Some((operator, right_term)) = right.pop() {
             let left_bp = operator.binding_powers().1;
-            let right_bp = right.get(0).map_or(255, |(op, _)| op.binding_powers().0);
+            let right_bp = right.last().map_or(255, |(op, _)| op.binding_powers().0);
 
             if left_bp < right_bp {
                 return Expression::Binary(Binary {
